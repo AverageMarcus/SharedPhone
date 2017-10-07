@@ -1,0 +1,10 @@
+{
+  "port": 7000,
+  "hostname": "",
+  "twilio": {
+    "accountSid": "",
+    "authToken": "",
+    "phoneNumber": ""
+  },
+  "memberNumbers": ["00000000001", "00000000002"]
+}

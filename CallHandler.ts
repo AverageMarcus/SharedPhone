@@ -1,14 +1,15 @@
-const twilio = require('twilio');
-const VoiceResponse = twilio.twiml.VoiceResponse;
-const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+import * as Twilio from 'twilio';
+import * as Config from 'config';
+const VoiceResponse = Twilio.twiml.VoiceResponse;
+const client = Twilio(Config.get<string>('twilio.accountSid'), Config.get<string>('twilio.authToken'));
 
-const hostname = process.env.HOSTNAME;
-const fromNumber = process.env.FROM_NUMBER;
-const memberNumbers = process.env.MEMBER_NUMBERS.split(',');
+const hostname = Config.get<string>('hostname');
+const fromNumber = Config.get<string>('twilio.phoneNumber');
+const memberNumbers = Config.get<string[]>('memberNumbers');
 const pendingCalls = {};
 
-async function initiateCall(id) {
-  return new Promise(resolve => {
+export async function initiateCall(id: string): Promise<string> {
+  return new Promise<string>(resolve => {
     console.log('Starting a new incoming call', id);
 
     // Initiate outgoing calls to group members
@@ -34,28 +35,7 @@ async function initiateCall(id) {
   });
 }
 
-function callOut(id) {
-  console.log('Calling out');
-
-  pendingCalls[id] = {};
-
-  memberNumbers.forEach(number => {
-    console.log(`Calling +${number}`);
-    client.calls.create({
-      url: `${hostname}/join?id=${id}&number=${number}`,
-      method: 'GET',
-      to: `+${number}`,
-      from: `+${fromNumber}`,
-      machineDetection: 'Enable'
-    })
-    .then((call) => {
-      pendingCalls[id][number] = call.sid;
-      console.log(number, call.sid);
-    });
-  });
-}
-
-function joinCall(id, number, isHuman) {
+export function joinCall(id: string, number: string, isHuman: boolean): string {
   console.log(`${number} picked up`);
   const twiml = new VoiceResponse();
   if (!pendingCalls[id]) {
@@ -82,11 +62,7 @@ function joinCall(id, number, isHuman) {
   return twiml.toString();
 }
 
-function isReady(id) {
-  return !pendingCalls[id];
-}
-
-function hangup(id, ignore) {
+export function hangup(id: string, ignore?: string): void {
   if (pendingCalls[id]) {
     memberNumbers.filter(num => num !== ignore).forEach(num => {
       console.log(`Hanging up outbound call to ${num}`, pendingCalls[id][num]);
@@ -102,8 +78,27 @@ function hangup(id, ignore) {
   }
 }
 
-module.exports = {
-  initiateCall,
-  hangup,
-  joinCall
-};
+function callOut(id: string): void {
+  console.log('Calling out');
+
+  pendingCalls[id] = {};
+
+  memberNumbers.forEach(number => {
+    console.log(`Calling +${number}`);
+    client.calls.create({
+      url: `${hostname}/join?id=${id}&number=${number}`,
+      method: 'GET',
+      to: `+${number}`,
+      from: `+${fromNumber}`,
+      machineDetection: 'Enable'
+    })
+    .then((call) => {
+      pendingCalls[id][number] = call.sid;
+      console.log(number, call.sid);
+    });
+  });
+}
+
+function isReady(id: string): boolean {
+  return !pendingCalls[id];
+}
