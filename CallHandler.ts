@@ -3,10 +3,19 @@ import * as Config from 'config';
 const VoiceResponse = Twilio.twiml.VoiceResponse;
 const client = Twilio(Config.get<string>('twilio.accountSid'), Config.get<string>('twilio.authToken'));
 
+interface Call {
+  status: 'pending' | 'active' | 'ended';
+  outgoingNumbers: { [key: string]: string };
+}
+
+interface CallList {
+  [key: string]: Call;
+}
+
 const hostname = Config.get<string>('hostname');
 const fromNumber = Config.get<string>('twilio.phoneNumber');
 const memberNumbers = Config.get<string[]>('memberNumbers');
-const pendingCalls = {};
+const calls: CallList = {};
 
 export async function initiateCall(id: string): Promise<string> {
   return new Promise<string>(resolve => {
@@ -38,15 +47,13 @@ export async function initiateCall(id: string): Promise<string> {
 export function joinCall(id: string, number: string, isHuman: boolean): string {
   console.log(`${number} picked up`);
   const twiml = new VoiceResponse();
-  if (!pendingCalls[id]) {
-    console.log('Call is already active so hanging up');
-    twiml.hangup();
-  } else if (!isHuman) {
-    console.log('Call picked up by answer machine');
+  if (!calls[id] || calls[id].status !== 'pending' || !isHuman) {
+    console.log('Call not in a vlid state to connect');
     twiml.hangup();
   } else {
     console.log(`${number} is the first one to pickup`);
 
+    calls[id].status = 'active';
     // Hang up other calls
     hangup(id, number);
 
@@ -63,25 +70,33 @@ export function joinCall(id: string, number: string, isHuman: boolean): string {
 }
 
 export function hangup(id: string, ignore?: string): void {
-  if (pendingCalls[id]) {
+  if (calls[id]) {
     memberNumbers.filter(num => num !== ignore).forEach(num => {
-      console.log(`Hanging up outbound call to ${num}`, pendingCalls[id][num]);
-      client.calls(pendingCalls[id][num])
+      console.log(`Hanging up outbound call to ${num}`, calls[id].outgoingNumbers[num]);
+      client.calls(calls[id].outgoingNumbers[num])
         .update({
           status: 'canceled'
         })
         .then((call) => {
           console.log(`Canceled call to ${num}`);
+          delete calls[id].outgoingNumbers[num];
         });
     });
-    delete pendingCalls[id];
+
+    if (Object.keys(calls[id].outgoingNumbers).length === 0) {
+      // All calls hung up
+      calls[id].status = 'ended';
+    }
   }
 }
 
 function callOut(id: string): void {
   console.log('Calling out');
 
-  pendingCalls[id] = {};
+  calls[id] = {
+    status: 'pending',
+    outgoingNumbers: {}
+  };
 
   memberNumbers.forEach(number => {
     console.log(`Calling +${number}`);
@@ -93,12 +108,12 @@ function callOut(id: string): void {
       machineDetection: 'Enable'
     })
     .then((call) => {
-      pendingCalls[id][number] = call.sid;
+      calls[id].outgoingNumbers[number] = call.sid;
       console.log(number, call.sid);
     });
   });
 }
 
 function isReady(id: string): boolean {
-  return !pendingCalls[id];
+  return calls[id] && calls[id].status === 'active';
 }
