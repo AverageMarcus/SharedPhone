@@ -29,7 +29,7 @@ export async function initiateCall(id: string): Promise<void> {
     outgoingNumbers: {}
   };
 
-  memberNumbers.forEach(number => {
+  for (const number of memberNumbers) {
     console.log(`Calling +${number}`);
 
     nexmo.calls.create({
@@ -52,8 +52,10 @@ export async function initiateCall(id: string): Promise<void> {
         console.log('Finished calling out', response);
         calls[id].outgoingNumbers[number] = response.uuid;
       }
-    })
-  });
+    });
+    // Prevent rate limiting
+    await sleep(1000);
+  }
 }
 
 export function joinCall(id: string, number: string): any {
@@ -95,4 +97,10 @@ export function hangup(id: string, ignore?: string): void {
       calls[id].status = 'ended';
     }
   }
+}
+
+const sleep = async (timeout) => {
+  return new Promise(resolve => {
+    setTimeout(resolve, timeout);
+  });
 }
