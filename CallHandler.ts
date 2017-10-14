@@ -76,7 +76,8 @@ export function joinCall(id: string, number: string): any {
         action: "conversation",
         name: id,
         record: false,
-        endOnExit: true
+        endOnExit: true,
+        event_method: 'GET'
       }
     ];
   }
@@ -88,8 +89,20 @@ export function hangup(id: string, ignore?: string): void {
     memberNumbers.filter(num => num !== ignore).forEach(num => {
       console.log(`Hanging up outbound call to ${num}`, calls[id].outgoingNumbers[num]);
 
-      // TODO: Hang up
-
+      nexmo.calls.update(calls[id].outgoingNumbers[num], {
+        action: 'hangup'
+      }, (error, response) => {
+        if (error) {
+          /**
+           * Note: There currently seems to be a bug where an invalid response is
+           * sent back but the action performs correctly
+           */
+          console.error('Failed to hang up', error);
+        } else {
+          console.log('Finished hanging up', response);
+          delete calls[id].outgoingNumbers[num];
+        }
+      });
     });
 
     if (Object.keys(calls[id].outgoingNumbers).length === 0) {
