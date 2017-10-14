@@ -12,7 +12,7 @@
   "dependencies": {
     "config": "^1.26.2",
     "express": "^4.16.1",
-    "twilio": "^3.7.0"
+    "nexmo": "^2.0.2"
   },
   "engines": {
     "node": ">=8"

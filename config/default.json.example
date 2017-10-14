@@ -1,9 +1,10 @@
 {
   "port": 7000,
   "hostname": "",
-  "twilio": {
-    "accountSid": "",
-    "authToken": "",
+  "nexmo": {
+    "apiKey": "",
+    "apiSecret": "",
+    "appId": "",
     "phoneNumber": ""
   },
   "memberNumbers": ["00000000001", "00000000002"]
